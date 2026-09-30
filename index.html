@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Undertale Boss Fight</title>
+  <style>
+    :root {
+      --bg1: #130d1d;
+      --bg2: #1d1430;
+      --panel: #1b1b2f;
+      --panel2: #2a2740;
+      --ink: #f5f5ff;
+      --pink: #ff6bc7;
+      --blue: #71d4ff;
+      --green: #8ef1b8;
+      --gold: #ffe66d;
+      --red: #ff6b6b;
+      --white: #ffffff;
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: radial-gradient(circle at top, #261a3f 0%, var(--bg2) 30%, var(--bg1) 100%);
+      color: var(--ink);
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    .game-shell {
+      width: min(92vw, 900px);
+      background: rgba(12, 12, 22, 0.6);
+      border: 2px solid rgba(255,255,255,0.12);
+      border-radius: 18px;
+      box-shadow: 0 30px 60px rgba(0,0,0,0.45);
+      overflow: hidden;
+    }
+
+    .battle-area {
+      position: relative;
+      height: 520px;
+      background: linear-gradient(#1a1730, #100f1f);
+      border-bottom: 2px solid rgba(255,255,255,0.12);
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(#1a1730, #100f1f);
+    }
+
+    .ui {
+      background: rgba(18, 20, 36, 0.95);
+      padding: 14px 18px 18px;
+    }
+
+    .hud {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+    }
+
+    .name {
+      color: var(--gold);
+      font-size: 1.1rem;
+    }
+
+    .bars {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .bar-wrap {
+      flex: 1;
+      min-width: 180px;
+    }
+
+    .bar-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.8rem;
+      margin-bottom: 4px;
+      opacity: 0.92;
+    }
+
+    .bar {
+      position: relative;
+      height: 16px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.12);
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.12);
+    }
+
+    .fill {
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 100%;
+      width: 100%;
+      border-radius: inherit;
+      transition: width 0.2s ease;
+    }
+
+    .hp-fill {
+      background: linear-gradient(90deg, #ff7d7d, #ffb3b3);
+    }
+
+    .enemy-fill {
+      background: linear-gradient(90deg, #ffcc70, #ffdca8);
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(120px, 1fr));
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    button {
+      background: linear-gradient(#2d2f52, #1f2343);
+      color: var(--ink);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 12px;
+      padding: 12px 10px;
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: 700;
+      transition: transform 0.1s ease, filter 0.1s ease;
+    }
+
+    button:hover {
+      filter: brightness(1.1);
+      transform: translateY(-1px);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    .text-box {
+      margin-top: 14px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 10px;
+      padding: 12px 14px;
+      min-height: 64px;
+      font-size: 0.95rem;
+      line-height: 1.5;
+      color: #f3f4ff;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+  <div class="game-shell">
+    <div class="battle-area">
+      <canvas id="game" width="900" height="520"></canvas>
+    </div>
+
+    <div class="ui">
+      <div class="hud">
+        <div class="name">MIGHTY BOSS</div>
+        <div id="turnLabel">Turn 1</div>
+      </div>
+
+      <div class="bars">
+        <div class="bar-wrap">
+          <div class="bar-label">
+            <span>YOU</span>
+            <span id="playerHpText">20 / 20</span>
+          </div>
+          <div class="bar">
+            <div id="playerHpBar" class="fill hp-fill" style="width:100%"></div>
+          </div>
+        </div>
+
+        <div class="bar-wrap">
+          <div class="bar-label">
+            <span>BOSS</span>
+            <span id="bossHpText">200 / 200</span>
+          </div>
+          <div class="bar">
+            <div id="bossHpBar" class="fill enemy-fill" style="width:100%"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="controls">
+        <button id="attackBtn">ATTACK</button>
+        <button id="actBtn">ACT</button>
+        <button id="itemBtn">ITEM</button>
+        <button id="mercyBtn">MERCY</button>
+      </div>
+
+      <div id="textBox" class="text-box">
+        A strange foe appears. The air trembles with dread...
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("game");
+    const ctx = canvas.getContext("2d");
+
+    const attackBtn = document.getElementById("attackBtn");
+    const actBtn = document.getElementById("actBtn");
+    const itemBtn = document.getElementById("itemBtn");
+    const mercyBtn = document.getElementById("mercyBtn");
+    const textBox = document.getElementById("textBox");
+    const playerHpText = document.getElementById("playerHpText");
+    const bossHpText = document.getElementById("bossHpText");
+    const playerHpBar = document.getElementById("playerHpBar");
+    const bossHpBar = document.getElementById("bossHpBar");
+    const turnLabel = document.getElementById("turnLabel");
+
+    const keys = {};
+    const boss = {
+      x: canvas.width / 2,
+      y: 120,
+      radius: 78,
+      hp: 200,
+      maxHp: 200,
+      phase: "idle",
+      hurtFlash: 0,
+      telling: "A strange foe appears..."
+    };
+
+    const player = {
+      x: canvas.width / 2,
+      y: canvas.height - 100,
+      radius: 9,
+      maxHp: 20,
+      hp: 20,
+      moveSpeed: 4.2
+    };
+
+    const battle = {
+      turn: 1,
+      mode: "select", // select, dodge, attack, win, lose
+      bullets: [],
+      particles: [],
+      actionLock: false,
+      mercyMeter: 0,
+      attackCooldown: 0,
+      message: "A strange foe appears..."
+    };
+
+    function clamp(n, min, max) {
+      return Math.max(min, Math.min(max, n));
+    }
+
+    function setText(str) {
+      textBox.textContent = str;
+    }
+
+    function updateBars() {
+      const playerPct = (player.hp / player.maxHp) * 100;
+      const bossPct = (boss.hp / boss.maxHp) * 100;
+
+      playerHpBar.style.width = `${playerPct}%`;
+      bossHpBar.style.width = `${bossPct}%`;
+
+      playerHpText.textContent = `${player.hp} / ${player.maxHp}`;
+      bossHpText.textContent = `${boss.hp} / ${boss.maxHp}`;
+    }
+
+    function resetBattle() {
+      battle.turn = 1;
+      battle.mode = "select";
+      battle.bullets = [];
+      battle.particles = [];
+      battle.actionLock = false;
+      battle.mercyMeter = 0;
+      battle.attackCooldown = 0;
+      battle.message = "A strange foe appears...";
+
+      boss.hp = boss.maxHp;
+      boss.hurtFlash = 0;
+      boss.phase = "idle";
+
+      player.hp = player.maxHp;
+      player.x = canvas.width / 2;
+      player.y = canvas.height - 100;
+
+      turnLabel.textContent = "Turn 1";
+      updateBars();
+      setText("A strange foe appears. The air trembles with dread...");
+    }
+
+    function beginDodgePhase() {
+      battle.mode = "dodge";
+      battle.bullets = [];
+      boss.phase = "attack";
+      setText("The boss attacks!");
+      spawnPattern();
+    }
+
+    function addParticles(x, y, color, count = 12) {
+      for (let i = 0; i < count; i++) {
+        battle.particles.push({
+          x, y,
+          vx: (Math.random() - 0.5) * 3.4,
+          vy: (Math.random() - 0.5) * 3.4,
+          life: 30 + Math.random() * 25,
+          color,
+          size: 2 + Math.random() * 4
+        });
+      }
+    }
+
+    function spawnPattern() {
+      const pattern = Math.floor(Math.random() * 4);
+
+      if (pattern === 0) {
+        for (let i = 0; i < 16; i++) {
+          const angle = (Math.PI * 2 / 16) * i;
+          battle.bullets.push({
+            x: boss.x + Math.cos(angle) * 100,
+            y: boss.y + Math.sin(angle) * 100,
+            radius: 7,
+            vx: Math.cos(angle) * 2.5,
+            vy: Math.sin(angle) * 2.5,
+            color: "#ff92c1"
+          });
+        }
+      } else if (pattern === 1) {
+        for (let i = 0; i < 22; i++) {
+          const angle = -Math.PI / 2 + (Math.PI / 18) * i;
+          battle.bullets.push({
+            x: boss.x,
+            y: boss.y,
+            radius: 7,
+            vx: Math.cos(angle) * (1.8 + i * 0.08),
+            vy: Math.sin(angle) * (1.8 + i * 0.08),
+            color: "#7ee7ff"
+          });
+        }
+      } else if (pattern === 2) {
+        for (let i = 0; i < 18; i++) {
+          const spread = (i - 9) * 0.5;
+          battle.bullets.push({
+            x: boss.x + spread * 16,
+            y: boss.y - 30,
+            radius: 7,
+            vx: spread * 0.3,
+            vy: 3.2 + Math.random() * 0.9,
+            color: "#a9ffb5"
+          });
+        }
+      } else {
+        for (let i = 0; i < 12; i++) {
+          const targetX = player.x + (Math.random() - 0.5) * 220;
+          const dx = targetX - boss.x;
+          const dy = canvas.height - boss.y;
+
+          const dist = Math.hypot(dx, dy) || 1;
+          battle.bullets.push({
+            x: boss.x,
+            y: boss.y,
+            radius: 7,
+            vx: (dx / dist) * 3.4,
+            vy: (dy / dist) * 3.4,
+            color: "#ffe66d"
+          });
+        }
+      }
+    }
+
+    function attackBoss() {
+      if (battle.mode !== "select") return;
+
+      const damage = 16 + Math.random() * 10;
+      boss.hp = Math.max(0, boss.hp - damage);
+      boss.hurtFlash = 1;
+      addParticles(boss.x, boss.y, "#ffb3d5", 24);
+
+      setText(`You attack! The boss takes ${Math.floor(damage)} damage.`);
+
+      if (boss.hp <= 0) {
+        battle.mode = "win";
+        setText("The boss collapses. You win.");
+        addParticles(boss.x, boss.y, "#8ef1b8", 50);
+        return;
+      }
+
+      battle.turn += 1;
+      turnLabel.textContent = `Turn ${battle.turn}`;
+      beginDodgePhase();
+    }
+
+    function actBoss() {
+      if (battle.mode !== "select") return;
+
+      const roll = Math.random();
+      if (roll < 0.5) {
+        setText("The boss snarls. It seems to hate your courage.");
+      } else {
+        setText("You speak kindly. It looks confused for a moment.");
+      }
+
+      battle.turn += 1;
+      turnLabel.textContent = `Turn ${battle.turn}`;
+      beginDodgePhase();
+    }
+
+    function useItem() {
+      if (battle.mode !== "select") return;
+
+      if (player.hp < player.maxHp) {
+        player.hp = Math.min(player.maxHp, player.hp + 5);
+        setText("You use an item. Your heart steadies.");
+      } else {
+        setText("You don't need to use anything right now.");
+        return;
+      }
+
+      battle.turn += 1;
+      turnLabel.textContent = `Turn ${battle.turn}`;
+      beginDodgePhase();
+      updateBars();
+    }
+
+    function mercyAttempt() {
+      if (battle.mode !== "select") return;
+
+      battle.mercyMeter += 1;
+      if (battle.mercyMeter >= 2) {
+        setText("The boss lowers its guard. You spared it.");
+        battle.mode = "win";
+        return;
+      }
+
+      setText("You offer mercy. The boss seems unsure.");
+      battle.turn += 1;
+      turnLabel.textContent = `Turn ${battle.turn}`;
+      beginDodgePhase();
+    }
+
+    function hurtPlayer(dmg) {
+      player.hp = Math.max(0, player.hp - dmg);
+      addParticles(player.x, player.y, "#ff8a8a", 18);
+      updateBars();
+
+      if (player.hp <= 0) {
+        battle.mode = "lose";
+        setText("Your soul breaks. Press F5 to try again.");
+      }
+    }
+
+    function updatePlayer() {
+      const moveX = (keys.ArrowRight || keys.d ? 1 : 0) - (keys.ArrowLeft || keys.a ? 1 : 0);
+      const moveY = (keys.ArrowDown || keys.s ? 1 : 0) - (keys.ArrowUp || keys.w ? 1 : 0);
+
+      if (moveX || moveY) {
+        const length = Math.hypot(moveX, moveY) || 1;
+        player.x += (moveX / length) * player.moveSpeed;
+        player.y += (moveY / length) * player.moveSpeed;
+      }
+
+      player.x = clamp(player.x, 110, canvas.width - 110);
+      player.y = clamp(player.y, 110, canvas.height - 80);
+    }
+
+    function updateBullets() {
+      for (let i = battle.bullets.length - 1; i >= 0; i--) {
+        const b = battle.bullets[i];
+        b.x += b.vx;
+        b.y += b.vy;
+
+        // collision with player
+        const dx = player.x - b.x;
+        const dy = player.y - b.y;
+        const dist = Math.hypot(dx, dy);
+
+        if (dist < player.radius + b.radius + 2) {
+          battle.bullets.splice(i, 1);
+          hurtPlayer(2);
+          continue;
+        }
+
+        // remove offscreen
+        if (
+          b.x < -30 || b.x > canvas.width + 30 ||
+          b.y < -30 || b.y > canvas.height + 30
+        ) {
+          battle.bullets.splice(i, 1);
+        }
+      }
+    }
+
+    function updateParticles() {
+      for (let i = battle.particles.length - 1; i >= 0; i--) {
+        const p = battle.particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life -= 1;
+        if (p.life <= 0) {
+          battle.particles.splice(i, 1);
+        }
+      }
+    }
+
+    function drawBackground() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+      grad.addColorStop(0, "#1a1730");
+      grad.addColorStop(1, "#070d18");
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // faux floor / arena
+      ctx.fillStyle = "rgba(255,255,255,0.03)";
+      ctx.fillRect(60, 60, canvas.width - 120, canvas.height - 120);
+
+      // heart box
+      ctx.strokeStyle = "rgba(255,255,255,0.18)";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(90, 80, canvas.width - 180, canvas.height - 140);
+    }
+
+    function drawBoss() {
+      const glow = boss.hurtFlash > 0 ? "#ffebeb" : "#ffc2d6";
+      ctx.save();
+      ctx.translate(boss.x, boss.y);
+
+      ctx.fillStyle = "rgba(255,255,255,0.05)";
+      ctx.beginPath();
+      ctx.arc(0, 0, boss.radius + 18, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(0, 0, boss.radius, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = "#7f3d5c";
+      ctx.beginPath();
+      ctx.arc(-18, -8, 9, 0, Math.PI * 2);
+      ctx.arc(18, -8, 9, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = "#130d1d";
+      ctx.beginPath();
+      ctx.arc(-18, -8, 4, 0, Math.PI * 2);
+      ctx.arc(18, -8, 4, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = "#130d1d";
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.arc(0, 12, 20, 0.2, Math.PI - 0.2);
+      ctx.stroke();
+
+      ctx.restore();
+
+      if (boss.hurtFlash > 0) boss.hurtFlash -= 0.08;
+    }
+
+    function drawPlayer() {
+      ctx.fillStyle = "#7fe7ff";
+      ctx.beginPath();
+      ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = "#f5f5ff";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+
+    function drawBullets() {
+      for (const b of battle.bullets) {
+        ctx.fillStyle = b.color;
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    function drawParticles() {
+      for (const p of battle.particles) {
+        ctx.fillStyle = p.color;
+        ctx.globalAlpha = Math.max(0, p.life / 40);
+        ctx.fillRect(p.x, p.y, p.size, p.size);
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    function update() {
+      if (battle.mode === "dodge") {
+        updatePlayer();
+        updateBullets();
+      } else if (battle.mode === "select") {
+        updatePlayer();
+      }
+
+      if (battle.mode === "dodge" && battle.bullets.length === 0) {
+        battle.mode = "select";
+        setText("Your turn. Choose an action.");
+      }
+
+      updateParticles();
+    }
+
+    function render() {
+      drawBackground();
+      drawBoss();
+      drawBullets();
+      drawPlayer();
+      drawParticles();
+    }
+
+    function loop() {
+      update();
+      render();
+      requestAnimationFrame(loop);
+    }
+
+    // controls
+    attackBtn.addEventListener("click", () => {
+      if (battle.mode === "select") attackBoss();
+    });
+
+    actBtn.addEventListener("click", () => {
+      if (battle.mode === "select") actBoss();
+    });
+
+    itemBtn.addEventListener("click", () => {
+      if (battle.mode === "select") useItem();
+    });
+
+    mercyBtn.addEventListener("click", () => {
+      if (battle.mode === "select") mercyAttempt();
+    });
+
+    document.addEventListener("keydown", (e) => {
+      keys[e.key] = true;
+      if (e.key === " " && battle.mode !== "select") {
+        battle.mode = "select";
+        setText("Your turn. Choose an action.");
+        battle.bullets = [];
+      }
+    });
+
+    document.addEventListener("keyup", (e) => {
+      keys[e.key] = false;
+    });
+
+    resetBattle();
+    updateBars();
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>
